@@ -398,6 +398,9 @@
     var tile = makeCanvas(w, tileH + pad * 2);
     var tctx = tile.getContext('2d', { willReadFrequently: true, alpha: false });
 
+    var sw = src.videoWidth || src.naturalWidth || src.width;
+    var sh = src.videoHeight || src.naturalHeight || src.height;
+    var scaleY = sh / h;
     var tiles = Math.ceil(h / tileH);
     for (var t = 0; t < tiles; t++) {
       if (opts.shouldCancel && opts.shouldCancel()) return false;
@@ -408,10 +411,12 @@
       tctx.clearRect(0, 0, w, tile.height);
       var Y0 = top - pad;            // image y of tile canvas row 0
       var drawY = pad;               // image row `top` lands here
-      tctx.drawImage(src, 0, top, w, bottom - top, 0, drawY, w, bottom - top);
+      tctx.imageSmoothingEnabled = true;
+      tctx.imageSmoothingQuality = 'high';
+      tctx.drawImage(src, 0, top * scaleY, sw, (bottom - top) * scaleY, 0, drawY, w, bottom - top);
       // replicate edge rows into the padding so sharpening has no dark fringe
-      if (top === 0) tctx.drawImage(src, 0, 0, w, 1, 0, 0, w, pad);
-      if (bottom === h) tctx.drawImage(src, 0, h - 1, w, 1, 0, drawY + (bottom - top), w, pad);
+      if (top === 0) tctx.drawImage(tile, 0, drawY, w, 1, 0, 0, w, pad);
+      if (bottom === h) tctx.drawImage(tile, 0, drawY + (bottom - top) - 1, w, 1, 0, drawY + (bottom - top), w, pad);
 
       var usedH = drawY + (bottom - top) + (bottom === h ? pad : 0);
       var img = tctx.getImageData(0, 0, w, Math.max(usedH, 1));
