@@ -26,7 +26,7 @@
       name: '18 Pro 표준',
       badge: '화사함',
       desc: '그림자를 살짝 들어 올리고 중간톤을 밝게. 가장 무난한 기본값',
-      exposureEV: 0.2, shadows: 0.42, highlight: 0.22, contrast: 0.08,
+      exposureEV: 0.2, shadows: 0.42, highlight: 0.22, contrast: 0.11,
       warmth: 0.06, vibrance: 0.16, clarity: 0.2, nr: 0.12, sharpen: 0.35, skin: 0.25
     },
     portrait: {
@@ -34,7 +34,7 @@
       name: '실내·인물',
       badge: '피부톤',
       desc: '하이라이트를 부드럽게 눌러 피부를 자연스럽고 따뜻하게',
-      exposureEV: 0.12, shadows: 0.34, highlight: 0.26, contrast: -0.02,
+      exposureEV: 0.12, shadows: 0.34, highlight: 0.26, contrast: 0.0,
       warmth: 0.12, vibrance: 0.08, clarity: 0.08, nr: 0.26, sharpen: 0.18, skin: 0.8
     },
     night: {
@@ -42,7 +42,7 @@
       name: '저조도·야간',
       badge: '암부 복원',
       desc: '어두운 실내·밤 사진의 그림자를 크게 끌어올리고 노이즈를 정리',
-      exposureEV: 0.32, shadows: 0.62, highlight: 0.2, contrast: 0.06,
+      exposureEV: 0.32, shadows: 0.62, highlight: 0.2, contrast: 0.08,
       warmth: 0.03, vibrance: 0.12, clarity: 0.12, nr: 0.78, sharpen: 0.22, skin: 0.35
     },
     outdoor: {
@@ -50,7 +50,7 @@
       name: '선명한 야외',
       badge: '선명함',
       desc: '하늘 하이라이트를 지키면서 미세 대비와 색을 진하게',
-      exposureEV: 0.06, shadows: 0.28, highlight: 0.35, contrast: 0.12,
+      exposureEV: 0.06, shadows: 0.28, highlight: 0.35, contrast: 0.15,
       warmth: 0.0, vibrance: 0.2, clarity: 0.36, nr: 0.06, sharpen: 0.5, skin: 0.15
     }
   };
@@ -102,7 +102,7 @@
     for (var key in p) out[key] = p[key];
     out.exposureEV = clamp(p.exposureEV * k, -0.6, 1.2);
     out.shadows = clamp(p.shadows * (0.45 + 0.55 * Math.min(1, k)), 0, 1);
-    out.highlight = clamp(p.highlight * (1.2 - 0.2 * Math.min(1, k)), 0, 1);
+    out.highlight = clamp(p.highlight * (0.72 + 0.28 * Math.min(1, k)), 0, 1);
     out.clarity = clamp(p.clarity * (0.72 + 0.28 * Math.min(1, k)), 0, 1);
     out.adapted = k < 0.999;
     return out;
@@ -117,12 +117,15 @@
   }
 
   /* ------------------------------------------------------------------- LUTs */
-  // Tone tables. Everything that changes channel ratios (shadows / highlights)
-  // is applied as a uniform luminance-based factor so hues never drift.
+  // Tone tables.
+  //  ch[3][256]  — exposure + white balance only (per channel)
+  //  shape[256]  — shadow lift · contrast · highlight roll-off, expressed as one
+  //                multiplier keyed on luminance so channel ratios (hue) survive
   function buildLUT(p) {
-    var ch = new Float32Array(3 * 256);     // exposure + white balance + contrast
-    var lift = new Float32Array(256);       // shadow lift multiplier (by luminance)
-    var shoulder = new Float32Array(256);   // highlight roll-off multiplier (by max channel)
+    var ch = new Float32Array(3 * 256);
+    var shape = new Float32Array(256);
+    var shoulder = new Float32Array(256);
+    var lift = new Float32Array(256);
     var ev = Math.pow(2, p.exposureEV);
     var wr = 1 + 0.09 * p.warmth + 0.014 * p.tint;
     var wg = 1 + 0.003 * p.tint;
@@ -130,33 +133,37 @@
     var gains = [wr, wg, wb];
     for (var c = 0; c < 3; c++) {
       for (var v = 0; v < 256; v++) {
-        var x = (v / 255) * gains[c] * ev;
-        if (x > 1) x = 1;
-        if (p.contrast !== 0) {
-          var sm = x * x * (3 - 2 * x);
-          x = x + p.contrast * (sm - x);
-        }
-        ch[c * 256 + v] = x < 0 ? 0 : x > 1 ? 1 : x;
+        var x0 = (v / 255) * gains[c] * ev;
+        // keep the headroom: clamping here would break the hue of a clipped
+        // warm highlight (e.g. a sunset sky). The shape factor rolls it off.
+        ch[c * 256 + v] = x0 > 1.5 ? 1.5 : x0;
       }
     }
     for (var l = 0; l < 256; l++) {
       var t = l / 255;
       lift[l] = 1 + p.shadows * 1.55 * Math.pow(1 - t, 1.8) * Math.pow(1 - t, 0.25);
-      var over = (t - 0.74) / 0.26;
+      var over = (t - 0.82) / 0.18;
       shoulder[l] = over > 0 ? 1 / (1 + p.highlight * 0.55 * over * over) : 1;
     }
-    // luminance mapping table: lets the clarity pass compare like with like
-    var map = new Float32Array(256);
+    // shape[m] over luminance 0..TMAX: contrast · shadow lift · soft highlight
+    // shoulder, blended as one hue-preserving multiplier.
+    var TMAX = 1.6;
     for (var m = 0; m < 256; m++) {
-      var u = (m / 255) * Math.pow(2, p.exposureEV);
-      if (u > 1) u = 1;
-      if (p.contrast !== 0) u = u + p.contrast * (u * u * (3 - 2 * u) - u);
-      u *= lift[m];
-      var o2 = (u - 0.6) / 0.4;
-      if (o2 > 0) u *= 1 / (1 + p.highlight * 0.55 * o2 * o2);
-      map[m] = u < 0 ? 0 : u > 1 ? 1 : u;
+      var l = (m / 255) * TMAX;
+      var v = l;
+      if (p.contrast !== 0 && v <= 1) v = v + p.contrast * (v * v * (3 - 2 * v) - v);
+      var t = v < 1 ? v : 1;
+      v *= 1 + p.shadows * 1.55 * Math.pow(1 - t, 1.8) * Math.pow(1 - t, 0.25);
+      var knee = 0.82;
+      if (v > knee) {
+        var u = Math.min(1, (v - knee) / (TMAX - knee));
+        var mapped = knee + (0.96 - knee) * (1 - (1 - u) * (1 - u));
+        var strength = 0.75 + 0.25 * p.highlight;
+        v = v + strength * (mapped - v);
+      }
+      shape[m] = l > 0.002 ? clamp(v / l, 0, 3) : 1;
     }
-    return { ch: ch, lift: lift, shoulder: shoulder, map: map };
+    return { ch: ch, shape: shape, lift: lift, shoulder: shoulder };
   }
 
   function tableAt(tbl, x) {
@@ -227,13 +234,8 @@
       var xr = data[j], xg = data[j + 1], xb = data[j + 2];
       var nr = C[xr], ng = C[256 + xg], nb = C[512 + xb];
       var lum = 0.2126 * nr + 0.7152 * ng + 0.0722 * nb;
-      var lf = tableAt(LUT.lift, lum);
+      var lf = tableAt(LUT.shape, lum / 1.6);
       nr *= lf; ng *= lf; nb *= lf;
-      lum *= lf;
-      if (lum > 0.74) {
-        var sf = tableAt(LUT.shoulder, lum);
-        nr *= sf; ng *= sf; nb *= sf;
-      }
       data[j] = nr * 255; data[j + 1] = ng * 255; data[j + 2] = nb * 255;
     }
     return data;
@@ -261,17 +263,10 @@
         var ng = C[256 + xgi] + (C[256 + xgi + 1] - C[256 + xgi]) * xgf;
         var nb = C[512 + xbi] + (C[512 + xbi + 1] - C[512 + xbi]) * xbf;
 
-        // --- shadow lift: one multiplier for the whole pixel (hue safe)
+        // --- shadow lift · contrast · highlight roll-off in one hue-safe factor
         var lumA = 0.2126 * nr + 0.7152 * ng + 0.0722 * nb;
-        var lf = tableAt(LUT.lift, lumA);
+        var lf = tableAt(LUT.shape, lumA / 1.6);
         nr *= lf; ng *= lf; nb *= lf;
-
-        // --- highlight roll-off: keyed on luminance so hues stay put
-        var lumH = 0.2126 * nr + 0.7152 * ng + 0.0722 * nb;
-        if (lumH > 0.74) {
-          var sf = tableAt(LUT.shoulder, lumH);
-          nr *= sf; ng *= sf; nb *= sf;
-        }
 
         // --- chroma restore: lifting shadows squeezes colour, put some back
         var lum = 0.2126 * nr + 0.7152 * ng + 0.0722 * nb;

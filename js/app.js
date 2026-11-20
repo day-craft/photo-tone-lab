@@ -486,7 +486,7 @@
   function schedulePrepare() {
     clearTimeout(prepareTimer);
     if (!state.src) return;
-    prepareTimer = setTimeout(autoPrepare, 900);
+    prepareTimer = setTimeout(autoPrepare, 1400);
   }
 
   async function autoPrepare() {
