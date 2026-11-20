@@ -30,6 +30,7 @@
     previewW: 0,
     previewH: 0,
     busy: false,
+    preparing: false,
     split: 0.5
   };
 
@@ -328,6 +329,7 @@
       $('adaptNote').hidden = !ENG.adaptToImage(ENG.normalize(state.params), state.mean).adapted;
       await renderPreview(false);
       setOutInfo('보정 준비됨 · 저장을 누르면 원본 해상도로 처리해요');
+      schedulePrepare();
     } catch (e) {
       console.error(e);
       toast('이 사진은 열 수 없어요. 사진 앱에서 JPG로 내보낸 뒤 다시 시도해 주세요.', true);
@@ -389,6 +391,7 @@
         console.error('preview failed', e);
       }
       after.style.clipPath = 'inset(0 0 0 ' + (state.split * 100).toFixed(2) + '%)';
+      if (!fast) schedulePrepare();
     }, delay);
   }
 
@@ -467,10 +470,38 @@
   }
 
   /* ────────────────────────────────────────────────── export */
+  var prepareTimer = null;
+  var prepareToken = 0;
+
   function invalidateOutput() {
     state.out = null;
+    prepareToken++;              // abandon any render in flight
     setOutInfo('보정 준비됨 · 저장을 누르면 원본 해상도로 처리해요');
     if (state.file) renderMetaPanel(); // clear the previous "검증 완료" note
+    schedulePrepare();
+  }
+
+  // iOS Safari only lets navigator.share() run inside the original tap, so the
+  // full-resolution result is prepared in the background once the user settles.
+  function schedulePrepare() {
+    clearTimeout(prepareTimer);
+    if (!state.src) return;
+    prepareTimer = setTimeout(autoPrepare, 900);
+  }
+
+  async function autoPrepare() {
+    if (!state.src || state.busy || state.preparing) return;
+    var token = ++prepareToken;
+    var isStale = function () { return token !== prepareToken; };
+    state.preparing = true;
+    setOutInfo('저장 준비 중…');
+    try {
+      await buildOutput({ silent: true, shouldCancel: isStale });
+    } finally {
+      state.preparing = false;
+    }
+    if (isStale()) return;
+    if (!state.out) setOutInfo('보정 준비됨 · 저장을 누르면 원본 해상도로 처리해요');
   }
 
   // Blob.arrayBuffer() is missing on older Safari; FileReader covers it.
@@ -539,11 +570,15 @@
     return { bytes: bytes, report: report };
   }
 
-  async function buildOutput() {
-    if (state.out) return state.out;
+  async function buildOutput(opts) {
+    opts = opts || {};
+    if (state.out && !opts.force) return state.out;
     if (!state.src) return null;
-    showOverlay('보정하는 중…', '원본 해상도로 처리하고 있어요');
-    await new Promise(function (r) { raf(function () { raf(r); }); });
+    if (!opts.silent) {
+      showOverlay('보정하는 중…', '원본 해상도로 처리하고 있어요');
+      await new Promise(function (r) { raf(function () { raf(r); }); });
+    }
+    if (opts.shouldCancel && opts.shouldCancel()) return null;
 
     var srcW = state.srcW, srcH = state.srcH;
     var area = srcW * srcH;
@@ -551,6 +586,7 @@
     var result = null;
 
     for (var attempt = 0; attempt < 4 && !result; attempt++) {
+      if (opts.shouldCancel && opts.shouldCancel()) break;
       var w = Math.max(320, Math.round(srcW * scale));
       var h = Math.max(320, Math.round(srcH * scale));
       var canvas = document.createElement('canvas');
@@ -559,9 +595,9 @@
       try {
         var ok = ENG.render(state.src, canvas, w, h, state.params, {
           mean: state.mean,
-          onProgress: function (done, total) { setProgress(done, total); }
+          onProgress: opts.silent ? null : function (done, total) { setProgress(done, total); }
         });
-        if (ok === false) throw new Error('cancelled');
+        if (ok === false) break;
         var blob = await canvasToBlob(canvas, 0.96);
         if (!blob) throw new Error('encode-failed');
         var bytes = await blobToBytes(blob);
@@ -581,9 +617,11 @@
       }
     }
 
-    hideOverlay();
+    if (!opts.silent) hideOverlay();
     if (!result) {
-      toast('저장용 이미지를 만들지 못했어요. 사진을 조금 줄이거나 다시 시도해 주세요.', true);
+      if (opts.shouldCancel && opts.shouldCancel()) return null;
+      if (!opts.silent) toast('저장용 이미지를 만들지 못했어요. 사진을 조금 줄이거나 다시 시도해 주세요.', true);
+      setOutInfo('보정 준비됨 · 저장을 누르면 원본 해상도로 처리해요');
       return null;
     }
     state.out = result;
@@ -646,20 +684,24 @@
     state.busy = true;
     $('saveBtn').disabled = true;
     try {
-      var o = await buildOutput();
-      if (!o) return;
-      var file = new File([o.blob], outName(), { type: 'image/jpeg' });
+      var prepared = state.out;
+      var file = prepared ? new File([prepared.blob], outName(), { type: 'image/jpeg' }) : null;
+      if (!prepared || !(navigator.canShare && navigator.canShare({ files: [file] }))) {
+        var o = prepared || await buildOutput();
+        if (!o) return;
+        file = new File([o.blob], outName(), { type: 'image/jpeg' });
+      }
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({ files: [file], title: '18 Pro 사진' });
           toast('공유 시트에서 “이미지 저장”을 누르면 사진첩에 들어가요');
         } catch (e) {
           if (e && e.name === 'AbortError') return;
-          downloadBlob(o.blob, outName());
+          downloadBlob(prepared ? prepared.blob : file, outName());
           toast('공유가 안 돼서 다운로드로 저장했어요');
         }
       } else {
-        downloadBlob(o.blob, outName());
+        downloadBlob(prepared ? prepared.blob : file, outName());
         toast('다운로드에 저장했어요 · 사진 앱에서 열 수 있어요');
       }
     } finally {
