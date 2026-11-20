@@ -1,0 +1,19 @@
+{
+  "name": "18 Pro Lab — 14 Pro 사진 보정",
+  "short_name": "18 Pro Lab",
+  "description": "아이폰 14 Pro 사진을 18 Pro의 밝고 자연스러운 톤으로. 촬영일시·GPS·기기 정보와 Apple MakerNote까지 원본 그대로 유지합니다.",
+  "lang": "ko",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0c0b",
+  "theme_color": "#0d0c0b",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "./icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

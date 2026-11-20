@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>18 Pro Lab — 14 Pro 사진을 18 Pro 톤으로</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<meta name="theme-color" content="#0e0d0c" />
+<meta name="description" content="아이폰 14 Pro 사진을 18 Pro의 밝고 자연스러운 톤으로. 촬영일시·GPS·기기·Apple MakerNote까지 원본 메타데이터 그대로." />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="18 Pro Lab" />
+<meta name="format-detection" content="telephone=no" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+<link rel="icon" href="./icon.svg" type="image/svg+xml" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" aria-hidden="true">
+        <defs>
+          <linearGradient id="ap" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ffd9a8"/><stop offset="1" stop-color="#e0954a"/>
+          </linearGradient>
+        </defs>
+        <circle cx="20" cy="20" r="17" fill="none" stroke="url(#ap)" stroke-width="1.6" opacity=".85"/>
+        <circle cx="20" cy="20" r="7.5" fill="none" stroke="url(#ap)" stroke-width="1.6"/>
+        <g stroke="url(#ap)" stroke-width="1.4" opacity=".9">
+          <path d="M20 2.5v6M20 31.5v6M2.5 20h6M31.5 20h6"/>
+        </g>
+        <circle cx="20" cy="20" r="2.6" fill="url(#ap)"/>
+      </svg>
+      <div class="brand-text">
+        <h1>18 Pro Lab</h1>
+        <p>14 Pro 사진을 18 Pro 톤으로</p>
+      </div>
+    </div>
+    <button class="icon-btn" id="infoBtn" aria-label="앱 정보와 개인정보 안내">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v-5m0-3.6v.2" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none"/><circle cx="12" cy="12" r="8.6" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+    </button>
+  </header>
+
+  <!-- ── 빈 상태 ───────────────────────────────────────────── -->
+  <section class="empty" id="emptyState">
+    <div class="dropcard" id="dropCard">
+      <div class="dropcard-glow" aria-hidden="true"></div>
+      <svg class="dropcard-icon" viewBox="0 0 64 64" aria-hidden="true">
+        <rect x="6" y="14" width="52" height="38" rx="9" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="32" cy="33" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+        <circle cx="32" cy="33" r="4" fill="currentColor" opacity=".55"/>
+        <path d="M14 14l4-5h8l3 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="48" cy="23" r="2.4" fill="currentColor" opacity=".7"/>
+      </svg>
+      <h2>사진을 골라 주세요</h2>
+      <p class="dropcard-sub">14 Pro로 찍은 사진이면 충분해요.<br/>보정은 이 기기 안에서만, 원본은 건드리지 않아요.</p>
+      <button class="btn btn-primary" id="pickBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 16.5V18a2 2 0 002 2h12a2 2 0 002-2v-1.5M12 4v11m0-11L8 8m4-4l4 4" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        사진 선택
+      </button>
+      <p class="dropcard-hint">JPG · HEIC · PNG</p>
+    </div>
+    <div class="empty-notes">
+      <div class="note"><span class="dot"></span>촬영일시·위치·기기 정보를 그대로 살려요</div>
+      <div class="note"><span class="dot"></span>사파리는 저장할 때 바로 ‘사진첩’으로 넘겨요</div>
+      <div class="note"><span class="dot"></span>인터넷에 사진을 올리지 않아요</div>
+    </div>
+  </section>
+
+  <!-- ── 작업 화면 ─────────────────────────────────────────── -->
+  <main class="editor" id="editor" hidden>
+
+    <section class="stage-card">
+      <div class="stage" id="stage">
+        <canvas class="stage-canvas" id="beforeCanvas"></canvas>
+        <canvas class="stage-canvas stage-after" id="afterCanvas"></canvas>
+        <div class="stage-tag stage-tag-left">원본</div>
+        <div class="stage-tag stage-tag-right">18 Pro</div>
+        <div class="stage-divider" id="stageDivider">
+          <div class="stage-knob">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 8l-4 4 4 4M15 8l4 4-4 4" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+        </div>
+      </div>
+      <div class="stage-foot">
+        <span class="chip" id="chipSize">—</span>
+        <span class="chip" id="chipMeta">—</span>
+        <button class="chip chip-btn" id="changeBtn">다른 사진</button>
+      </div>
+    </section>
+
+    <section class="presets">
+      <div class="section-head">
+        <h3>프리셋</h3>
+        <span class="section-note" id="presetNote">18 Pro 표준</span>
+      </div>
+      <div class="preset-row" id="presetRow" role="tablist" aria-label="프리셋"></div>
+    </section>
+
+    <section class="tuning">
+      <div class="section-head">
+        <h3>세부 조정</h3>
+        <button class="link-btn" id="resetBtn">프리셋 값으로</button>
+      </div>
+      <div class="sliders" id="sliderList"></div>
+      <p class="adapt-note" id="adaptNote" hidden>이 사진은 이미 밝아서 강도를 부드럽게 줄였어요.</p>
+    </section>
+
+    <section class="meta-card" id="metaCard">
+      <button class="meta-head" id="metaToggle" aria-expanded="true">
+        <div>
+          <h3>메타데이터</h3>
+          <p id="metaSummary">확인하는 중…</p>
+        </div>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9.5l6 6 6-6" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="meta-body" id="metaBody">
+        <dl class="meta-grid" id="metaGrid"></dl>
+        <div class="meta-status" id="metaStatus"></div>
+      </div>
+    </section>
+
+    <div class="spacer"></div>
+  </main>
+
+  <footer class="savebar" id="saveBar" hidden>
+    <div class="savebar-info">
+      <span id="outInfo">보정 준비됨</span>
+    </div>
+    <div class="savebar-actions">
+      <button class="btn btn-ghost" id="downloadBtn" title="파일로 저장">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        다운로드
+      </button>
+      <button class="btn btn-primary" id="saveBtn">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19h14" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        사진첩에 저장
+      </button>
+    </div>
+  </footer>
+
+  <input type="file" id="fileInput" accept="image/*" hidden />
+</div>
+
+<!-- 처리 중 -->
+<div class="overlay" id="overlay" hidden>
+  <div class="overlay-card">
+    <div class="spinner" aria-hidden="true"></div>
+    <p class="overlay-title" id="overlayTitle">보정하는 중…</p>
+    <div class="progress"><div class="progress-bar" id="progressBar"></div></div>
+    <p class="overlay-sub" id="overlaySub">원본 해상도로 처리하고 있어요</p>
+  </div>
+</div>
+
+<!-- 정보 시트 -->
+<div class="sheet-backdrop" id="sheetBackdrop" hidden></div>
+<div class="sheet" id="infoSheet" role="dialog" aria-modal="true" aria-label="앱 정보" hidden>
+  <div class="sheet-grab" aria-hidden="true"></div>
+  <h2>18 Pro Lab</h2>
+  <p class="sheet-lead">14 Pro 사진의 어둡고 눌린 그림자를 18 Pro처럼 밝고 자연스럽게. 원본 파일은 그대로 두고 새 사진을 만들어요.</p>
+  <ul class="sheet-list">
+    <li><strong>사진은 기기 안에서만</strong> 처리돼요. 서버로 올라가지 않아요.</li>
+    <li><strong>메타데이터는 원본 그대로</strong> — 촬영일시·GPS·기기·렌즈·노출·애플 MakerNote까지 저장한 사진에 다시 담아요.</li>
+    <li>방향 정보(Orientation)만 <strong>1(정방향)</strong>로 맞춰서 사진 앱에서 두 번 돌아가지 않게 해요.</li>
+    <li>아주 큰 사진(48MP)은 사파리 메모리 한계 때문에 조금 줄여 저장할 수 있어요.</li>
+  </ul>
+  <button class="btn btn-primary btn-wide" id="sheetClose">알겠어요</button>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="./js/exif.js"></script>
+<script src="./js/engine.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>
