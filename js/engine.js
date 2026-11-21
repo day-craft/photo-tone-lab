@@ -26,32 +26,32 @@
       name: '18 Pro 표준',
       badge: '화사함',
       desc: '그림자를 살짝 들어 올리고 중간톤을 밝게. 가장 무난한 기본값',
-      exposureEV: 0.2, shadows: 0.42, highlight: 0.22, contrast: 0.11,
-      warmth: 0.06, vibrance: 0.16, clarity: 0.2, nr: 0.12, sharpen: 0.35, skin: 0.25
+      exposureEV: 0.24, shadows: 0.48, highlight: 0.22, contrast: 0.11,
+      warmth: 0.06, vibrance: 0.16, clarity: 0.18, nr: 0.12, sharpen: 0.22, skin: 0.30
     },
     portrait: {
       key: 'portrait',
       name: '실내·인물',
       badge: '피부톤',
       desc: '하이라이트를 부드럽게 눌러 피부를 자연스럽고 따뜻하게',
-      exposureEV: 0.12, shadows: 0.34, highlight: 0.26, contrast: 0.0,
-      warmth: 0.12, vibrance: 0.08, clarity: 0.08, nr: 0.26, sharpen: 0.18, skin: 0.8
+      exposureEV: 0.16, shadows: 0.36, highlight: 0.26, contrast: 0.04,
+      warmth: 0.09, vibrance: 0.10, clarity: 0.08, nr: 0.24, sharpen: 0.16, skin: 0.80
     },
     night: {
       key: 'night',
       name: '저조도·야간',
       badge: '암부 복원',
       desc: '어두운 실내·밤 사진의 그림자를 크게 끌어올리고 노이즈를 정리',
-      exposureEV: 0.32, shadows: 0.62, highlight: 0.2, contrast: 0.08,
-      warmth: 0.03, vibrance: 0.12, clarity: 0.12, nr: 0.78, sharpen: 0.22, skin: 0.35
+      exposureEV: 0.28, shadows: 0.58, highlight: 0.22, contrast: 0.08,
+      warmth: 0.03, vibrance: 0.12, clarity: 0.12, nr: 0.52, sharpen: 0.20, skin: 0.35
     },
     outdoor: {
       key: 'outdoor',
       name: '선명한 야외',
       badge: '선명함',
       desc: '하늘 하이라이트를 지키면서 미세 대비와 색을 진하게',
-      exposureEV: 0.06, shadows: 0.28, highlight: 0.35, contrast: 0.15,
-      warmth: 0.0, vibrance: 0.2, clarity: 0.36, nr: 0.06, sharpen: 0.5, skin: 0.15
+      exposureEV: 0.08, shadows: 0.30, highlight: 0.35, contrast: 0.13,
+      warmth: 0.04, vibrance: 0.18, clarity: 0.18, nr: 0.08, sharpen: 0.25, skin: 0.45
     }
   };
   var PRESET_ORDER = ['standard', 'portrait', 'night', 'outdoor'];
